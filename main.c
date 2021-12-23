@@ -12,7 +12,7 @@ int main(int argc, char **argv)
         exit(-1);
     }
 
-    parseCommandString(argv[1], &serverName, &serverIP, &name, &password, &file);
+    parseCommandString(argv[1], serverName, serverIP, name, password, file);
 
     if (strcmp(serverIP, "") == 0)
     {
