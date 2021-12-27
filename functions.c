@@ -25,6 +25,7 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     memmove(soup, commandArg + 6, strlen(commandArg));
     //parsing hostname
     char* temp = memchr(soup, '/', strlen(soup));
+    printf("\nTemp created: %s\n", temp);
     *serverName = memmove(*serverName, soup, strlen(soup)-strlen(temp));
     // serverName = memchr(soup, '/', strlen(soup));
     //parsing user
@@ -48,17 +49,21 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     }
     //parsing serverIP and serverName
     char *last = strrchr(token, '/');
+    memmove(last, last + 1, strlen(last));
+    temp = memchr(soup, '/', strlen(soup));
     if (last != NULL)
     {
         memmove(serverIP, last, strlen(last));
-        memmove(*file_name, last + 1, strlen(last));
+        memmove(*file_name, temp + 1, strlen(temp));
     }
     else
     {
         strcpy(serverIP, "");
-        memmove(*file_name, token, strlen(token));
+        memmove(*file_name, temp, strlen(temp));
     }
     printf("Parsed command string.\n");
+    printf("Command Arg: %s\n ServerName: %s\n ServerIP: %s\n name: %s\n password: %s\n file_name: %s\n temp: %s\n", commandArg, *serverName, serverIP, *name, *password, *file_name, temp);
+    exit(0);
     return 0;
 }
 
