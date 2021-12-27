@@ -26,16 +26,7 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
   //parsing hostname
   char *temp = memchr(soup, '/', strlen(soup));
   //parsing user, password and serverName
-  char *token = memchr(soup, ':', strlen(soup));
-  if (strcmp(token, soup) == 0)
-  {
-    memmove(*serverName, soup, strlen(soup) - strlen(temp));
-    strcpy(*name, "anonymous");
-    strcpy(*password, "empty");
-    // name = "anonymous";
-    // password = "empty";
-  }
-  else
+  if (strchr(soup, ':'))
   {
     memmove(*serverName, soup, strlen(soup) - strlen(temp));
     *serverName = memchr(*serverName, '@', strlen(*serverName));
@@ -47,10 +38,16 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     char *aux2 = strchr(aux, '@');
     memmove(*password, aux, strlen(aux) - strlen(aux2));
     memmove(*password, *password + 1, strlen(*password));
-    //remove-se o 1o pq é :
+  }
+  else
+  {
+    char *token = strstr(soup, ":");
+    memmove(*serverName, soup, strlen(soup) - strlen(temp));
+    strcpy(*name, "anonymous");
+    strcpy(*password, "empty");
   }
   //parsing serverIP and file_name
-  char *last = strrchr(token, '/');
+  char *last = strrchr(temp, '/');
   last++;
   if (last != NULL)
   {
