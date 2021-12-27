@@ -49,8 +49,7 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     }
     //parsing serverIP and serverName
     char *last = strrchr(token, '/');
-    memmove(last, last + 1, strlen(last));
-    temp = memchr(soup, '/', strlen(soup));
+    last++;
     if (last != NULL)
     {
         memmove(serverIP, last, strlen(last));
