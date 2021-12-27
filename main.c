@@ -15,12 +15,7 @@ int main(int argc, char **argv)
 
     parseCommandString(argv[1], &serverName, serverIP, &name, &password, &file);
 
-    getIPfromDNS(serverName, serverIP); // Debug
-    // Make sure serverIP has been initialized
-    if (strcmp(serverIP, "") == 0)
-    {
-        getIPfromDNS(&serverName, &serverIP);
-    }
+    getIPfromDNS(serverName, serverIP);
     free(serverName);
 
     downloadFile(serverIP, name, password, file);
