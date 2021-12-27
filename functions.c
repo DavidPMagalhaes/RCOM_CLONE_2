@@ -14,7 +14,12 @@ void printHelp()
 }
 
 int parseCommandString(char* commandArg, char* serverName, char* serverIP, char* name, char* password, char* file_name){
-  char* soup;
+  char* soup = (char*)malloc((strlen(commandArg)+1)*sizeof(char));
+  serverName = (char*)malloc((strlen(commandArg)+1)*sizeof(char));
+  serverIP = (char*)malloc((strlen(commandArg)+1)*sizeof(char));
+  name = (char*)malloc((strlen(commandArg)+1)*sizeof(char));
+  password = (char*)malloc((strlen(commandArg)+1)*sizeof(char));
+  file_name = (char*)malloc((strlen(commandArg)+1)*sizeof(char));
   memmove(soup, commandArg+6, strlen(commandArg));
   //parsing hostname
   serverName = memchr(soup, '/', strlen(soup));
