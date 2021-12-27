@@ -7,4 +7,4 @@ getip: getip.c
 	gcc -g -o getip.exe getip.c
 
 clienttcp: clientTCP.c
-	gcc -g -o clientTCP.exe clienttcp.c
+	gcc -g -o clientTCP.exe clientTCP.c
