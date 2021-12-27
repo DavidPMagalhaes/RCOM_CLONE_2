@@ -5,6 +5,26 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "download Password",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.exe",
+            "args": ["ftp://henrique:1234@193.137.29.15/pub/kodi/timestamp.txt"],
+            "stopAtEntry": false,
+            "cwd": "${fileDirname}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "miDebuggerPath": "/usr/bin/gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ]
+        },
+        {
             "name": "download IP",
             "type": "cppdbg",
             "request": "launch",
