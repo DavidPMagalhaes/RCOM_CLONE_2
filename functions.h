@@ -7,7 +7,7 @@ void printHelp();
 
 int parseCommandString(char* commandArg, char* serverName, char* serverIP, char* name, char* password, char* file_name);
 
-void getIPfromDNS(char **servername, char **serverIP);
+void getIPfromDNS(char *servername, char **serverIP);
 
 void downloadFile(char *serverIP, char *name, char *password, char *file);
 
@@ -27,9 +27,9 @@ off_t getFileSize(char *answer, int size);
 
 void waitForFileTransfer(int socket);
 
-void readFile(int socket, char *buf);
+void readFile(int socket, char *buf, off_t len);
 
-void saveFile(char *buf);
+void saveFile(char *filename, char *buf, off_t len);
 
 void socketWrite(int socket, char *toWrite);
 

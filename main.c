@@ -14,6 +14,7 @@ int main(int argc, char **argv)
 
     parseCommandString(argv[1], serverName, serverIP, name, password, file);
 
+    // Make sure serverIP has been initialized
     if (strcmp(serverIP, "") == 0)
     {
         getIPfromDNS(&serverName, &serverIP);

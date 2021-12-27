@@ -7,42 +7,63 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <netdb.h>
+#include <fcntl.h>
 
 void printHelp()
 {
     printf("Usage: download ftp://[<user>:<password>@]<host>/<url-path>\n");
 }
 
-int parseCommandString(char* commandArg, char* serverName, char* serverIP, char* name, char* password, char* file_name){
-  char* soup;
-  memmove(soup, commandArg+6, strlen(commandArg));
-  //parsing hostname
-  serverName = memchr(soup, '/', strlen(soup));
-  //parsing user
-  char* token = strtok(soup, ":");
-  if (strcmp(token, soup) == 0) {
-    name="anonymous";
-    password="";
-  }else{
-    char* aux = memchr(soup, ':', strlen(soup));
-    memmove(name, soup, strlen(soup)-strlen(aux));
-    //parsing password
-    char* aux2 = strchr(aux, '@');
-    memmove(password, aux, strlen(aux)-strlen(aux2));
-    memmove(password, password+1, strlen(password));
-    //remove-se o 1o pq é :
-  }
-  //parsing serverIP and serverName
-  char* last = strrchr(token, '/');
-  if (last != NULL) {
-    memmove(serverIP, last, strlen(last));
-    memmove(file_name, last+1, strlen(last));
-  }else {
-    serverIP="";
-    memmove(file_name, token, strlen(token));
-  }
-  printf("Parsed command string.\n");
-  return 0;
+int parseCommandString(char *commandArg, char *serverName, char *serverIP, char *name, char *password, char *file_name)
+{
+    char *soup;
+    memmove(soup, commandArg + 6, strlen(commandArg));
+    //parsing hostname
+    serverName = memchr(soup, '/', strlen(soup));
+    //parsing user
+    char *token = strtok(soup, ":");
+    if (strcmp(token, soup) == 0)
+    {
+        name = "anonymous";
+        password = "";
+    }
+    else
+    {
+        char *aux = memchr(soup, ':', strlen(soup));
+        memmove(name, soup, strlen(soup) - strlen(aux));
+        //parsing password
+        char *aux2 = strchr(aux, '@');
+        memmove(password, aux, strlen(aux) - strlen(aux2));
+        memmove(password, password + 1, strlen(password));
+        //remove-se o 1o pq é :
+    }
+    //parsing serverIP and serverName
+    char *last = strrchr(token, '/');
+    if (last != NULL)
+    {
+        memmove(serverIP, last, strlen(last));
+        memmove(file_name, last + 1, strlen(last));
+    }
+    else
+    {
+        serverIP = "";
+        memmove(file_name, token, strlen(token));
+    }
+    printf("Parsed command string.\n");
+    return 0;
+}
+
+void getIPfromDNS(char *servername, char **serverIP)
+{
+    struct hostent *h;
+    if ((h = gethostbyname(servername)) == NULL)
+    {
+        herror("gethostbyname()");
+        exit(-1);
+    }
+    (*serverIP) = malloc(3 * 4 + 3 + 1); // Depends if serverIP has been initialized or not
+    strcpy(serverIP, inet_ntoa(*((struct in_addr *)h->h_addr)));
 }
 
 void downloadFile(char *serverIP, char *name, char *password, char *file)
@@ -51,11 +72,11 @@ void downloadFile(char *serverIP, char *name, char *password, char *file)
     int controlSocket = establishControlConnection(serverIP);
     loginControlConnection(controlSocket, name, password);
     int dataSocket = establishDataConnection(serverIP, controlSocket);
-    size_t fileLen = askForFile(controlSocket, file);
+    off_t fileLen = askForFile(controlSocket, file);
     char buf[fileLen];
     waitForFileTransfer(controlSocket);
-    readFile(dataSocket, buf);
-    saveFile(buf);
+    readFile(dataSocket, buf, fileLen);
+    saveFile(file, buf, fileLen);
 
     if (close(controlSocket) < 0)
     {
@@ -196,12 +217,20 @@ void waitForFileTransfer(int socket)
     }
 }
 
-void readFile(int socket, char *buf)
+void readFile(int socket, char *buf, off_t len)
 {
+    socketRead(socket, buf, len);
 }
 
-void saveFile(char *buf)
+void saveFile(char *filename, char *buf, off_t len)
 {
+    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC);
+    int res = write(fd, buf, len);
+    if (res == -1)
+    {
+        perror("write()");
+        exit(-1);
+    }
 }
 
 void socketWrite(int socket, char *toWrite)
