@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/main.exe",
-            "args": [],
+            "args": ["ftp://ftp.up.pt/pub/kodi/timestamp.txt"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
