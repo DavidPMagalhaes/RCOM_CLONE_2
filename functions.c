@@ -133,7 +133,15 @@ int establishConnection(char *serverIP, int port)
 
 int establishControlConnection(char *serverIP)
 {
-    return establishConnection(serverIP, SERVER_PORT);
+    char *connectionAnswer = "220-Welcome to the University of Porto's mirror archive";
+    int socket = establishConnection(serverIP, SERVER_PORT);
+    int res = socketReadAndVerify(socket, connectionAnswer, strlen(connectionAnswer) - 1);
+    if (res)
+    {
+        fprintf(stderr, "Error establishing connection");
+        exit(-1);
+    }
+    return socket;
 }
 
 void loginControlConnection(int controlSocket, char *name, char *password)
@@ -142,15 +150,16 @@ void loginControlConnection(int controlSocket, char *name, char *password)
     char command[BUFFER_SIZE];
     char *usernameAnswer = "331 Please specify the password.";
     char *passwordAnswer = "230 Login successful.";
-    snprintf(command, BUFFER_SIZE, "name %s", name);
+    snprintf(command, BUFFER_SIZE, "user %s\n", name);
     socketWrite(controlSocket, command);
+    int d = strlen(usernameAnswer) - 1;
     res = socketReadAndVerify(controlSocket, usernameAnswer, strlen(usernameAnswer) - 1);
     if (res)
     {
         fprintf(stderr, "Error providing the user");
         exit(-1);
     }
-    snprintf(command, BUFFER_SIZE, "pass %s", password);
+    snprintf(command, BUFFER_SIZE, "pass %s\n", password);
     socketWrite(controlSocket, command);
     res = socketReadAndVerify(controlSocket, passwordAnswer, strlen(passwordAnswer) - 1);
     if (res)
@@ -163,7 +172,7 @@ void loginControlConnection(int controlSocket, char *name, char *password)
 int establishDataConnection(char *serverIP, int controlSocket)
 {
     char answer[BUFFER_SIZE];
-    socketWrite(controlSocket, "PASV");
+    socketWrite(controlSocket, "PASV\n");
     socketRead(controlSocket, answer, BUFFER_SIZE);
     int port = getPASVPort(answer);
     int dataSocket = establishConnection(serverIP, port);
@@ -188,7 +197,7 @@ int getPASVPort(char *answer)
 
 off_t askForFile(int socket, char *file)
 {
-    int cmdSize = strlen(file) + 5 + 1;
+    int cmdSize = strlen(file) + 5 + 1 + 1;
     char command[cmdSize];
     int strSize = strlen(file) + BUFFER_SIZE;
     char answer[strSize];
@@ -196,7 +205,7 @@ off_t askForFile(int socket, char *file)
     int cmpSize = strlen(expectedAnswerPrefix) + strlen(file) + 1;
     char expectedAnswer[cmpSize];
 
-    snprintf(command, cmdSize, "RETR %s", file);
+    snprintf(command, cmdSize, "RETR %s\n", file);
     socketWrite(socket, command);
     socketRead(socket, answer, strSize);
 
@@ -262,7 +271,6 @@ void socketWrite(int socket, char *toWrite)
 void socketRead(int socket, char *toRead, int toReadSize)
 {
     ssize_t bytes = read(socket, toRead, toReadSize);
-
     if (bytes > 0)
     {
     }
