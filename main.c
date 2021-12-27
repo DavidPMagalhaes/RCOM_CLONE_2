@@ -27,7 +27,6 @@ int main(int argc, char **argv)
 
     free(name);
     free(password);
-    free(serverIP);
     free(file);
     return 0;
 }

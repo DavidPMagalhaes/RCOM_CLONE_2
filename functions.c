@@ -24,9 +24,9 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     (*file_name) = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
     memmove(soup, commandArg + 6, strlen(commandArg));
     //parsing hostname
-    char* temp = memchr(soup, '/', strlen(soup));
+    char *temp = memchr(soup, '/', strlen(soup));
     printf("\nTemp created: %s\n", temp);
-    *serverName = memmove(*serverName, soup, strlen(soup)-strlen(temp));
+    *serverName = memmove(*serverName, soup, strlen(soup) - strlen(temp));
     // serverName = memchr(soup, '/', strlen(soup));
     //parsing user
     char *token = strtok(soup, ":");
@@ -62,7 +62,6 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     }
     printf("Parsed command string.\n");
     printf("Command Arg: %s\n ServerName: %s\n ServerIP: %s\n name: %s\n password: %s\n file_name: %s\n temp: %s\n", commandArg, *serverName, serverIP, *name, *password, *file_name, temp);
-    exit(0);
     return 0;
 }
 
@@ -228,7 +227,7 @@ off_t getFileSize(char *answer, int size)
 
 void waitForFileTransfer(int socket)
 {
-    char *transferComplete = "226 Tranfer complete.";
+    char *transferComplete = "226 Transfer complete.";
     int res = socketReadAndVerify(socket, transferComplete, strlen(transferComplete));
     if (res)
     {
@@ -244,7 +243,19 @@ void readFile(int socket, char *buf, off_t len)
 
 void saveFile(char *filename, char *buf, off_t len)
 {
-    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC);
+    char *fileNameNoPath = strrchr(filename, '/');
+    if(fileNameNoPath == NULL){
+        fileNameNoPath = filename;
+    }
+    else{
+        fileNameNoPath += 1;
+    }
+    int fd = open(fileNameNoPath, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+    if (fd == -1)
+    {
+        perror("open()");
+        exit(-1);
+    }
     int res = write(fd, buf, len);
     if (res == -1)
     {
@@ -270,6 +281,7 @@ void socketWrite(int socket, char *toWrite)
 void socketRead(int socket, char *toRead, int toReadSize)
 {
     ssize_t bytes = read(socket, toRead, toReadSize);
+    printf("%s", toRead);
     if (bytes > 0)
     {
     }
