@@ -15,32 +15,35 @@ void printHelp()
     printf("Usage: download ftp://[<user>:<password>@]<host>/<url-path>\n");
 }
 
-int parseCommandString(char *commandArg, char *serverName, char *serverIP, char *name, char *password, char *file_name)
+int parseCommandString(char *commandArg, char **serverName, char *serverIP, char **name, char **password, char **file_name)
 {
     char *soup = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
-    serverName = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
-    serverIP = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
-    name = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
-    password = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
-    file_name = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
+    (*serverName) = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
+    (*name) = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
+    (*password) = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
+    (*file_name) = (char *)malloc((strlen(commandArg) + 1) * sizeof(char));
     memmove(soup, commandArg + 6, strlen(commandArg));
     //parsing hostname
-    serverName = memchr(soup, '/', strlen(soup));
+    char* temp = memchr(soup, '/', strlen(soup));
+    *serverName = memmove(*serverName, soup, strlen(soup)-strlen(temp));
+    // serverName = memchr(soup, '/', strlen(soup));
     //parsing user
     char *token = strtok(soup, ":");
     if (strcmp(token, soup) == 0)
     {
-        name = "anonymous";
-        password = "";
+        strcpy(*name, "anonymous");
+        strcpy(*password, "empty");
+        // name = "anonymous";
+        // password = "empty";
     }
     else
     {
         char *aux = memchr(soup, ':', strlen(soup));
-        memmove(name, soup, strlen(soup) - strlen(aux));
+        memmove(*name, soup, strlen(soup) - strlen(aux));
         //parsing password
         char *aux2 = strchr(aux, '@');
-        memmove(password, aux, strlen(aux) - strlen(aux2));
-        memmove(password, password + 1, strlen(password));
+        memmove(*password, aux, strlen(aux) - strlen(aux2));
+        memmove(*password, *password + 1, strlen(*password));
         //remove-se o 1o pq é :
     }
     //parsing serverIP and serverName
@@ -48,18 +51,18 @@ int parseCommandString(char *commandArg, char *serverName, char *serverIP, char 
     if (last != NULL)
     {
         memmove(serverIP, last, strlen(last));
-        memmove(file_name, last + 1, strlen(last));
+        memmove(*file_name, last + 1, strlen(last));
     }
     else
     {
-        serverIP = "";
-        memmove(file_name, token, strlen(token));
+        strcpy(serverIP, "");
+        memmove(*file_name, token, strlen(token));
     }
     printf("Parsed command string.\n");
     return 0;
 }
 
-void getIPfromDNS(char *servername, char **serverIP)
+void getIPfromDNS(char *servername, char *serverIP)
 {
     struct hostent *h;
     if ((h = gethostbyname(servername)) == NULL)
@@ -67,7 +70,6 @@ void getIPfromDNS(char *servername, char **serverIP)
         herror("gethostbyname()");
         exit(-1);
     }
-    (*serverIP) = malloc(3 * 4 + 3 + 1); // Depends if serverIP has been initialized or not
     strcpy(serverIP, inet_ntoa(*((struct in_addr *)h->h_addr)));
 }
 

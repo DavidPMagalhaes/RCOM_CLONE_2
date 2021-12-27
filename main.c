@@ -5,15 +5,17 @@
 
 int main(int argc, char **argv)
 {
-    char *name, *password, *serverName, *serverIP, *file;
+    char *name, *password, *serverName, serverIP[16], *file;
+    strcpy(serverIP, "");
     if (argc != 2)
     {
         printHelp();
         exit(-1);
     }
 
-    parseCommandString(argv[1], serverName, serverIP, name, password, file);
+    parseCommandString(argv[1], &serverName, serverIP, &name, &password, &file);
 
+    getIPfromDNS(serverName, serverIP); // Debug
     // Make sure serverIP has been initialized
     if (strcmp(serverIP, "") == 0)
     {

@@ -5,9 +5,9 @@
 
 void printHelp();
 
-int parseCommandString(char* commandArg, char* serverName, char* serverIP, char* name, char* password, char* file_name);
+int parseCommandString(char *commandArg, char **serverName, char *serverIP, char **name, char **password, char **file_name);
 
-void getIPfromDNS(char *servername, char **serverIP);
+void getIPfromDNS(char *servername, char *serverIP);
 
 void downloadFile(char *serverIP, char *name, char *password, char *file);
 
