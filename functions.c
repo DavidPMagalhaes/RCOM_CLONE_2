@@ -60,8 +60,6 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
     strcpy(serverIP, "");
     memmove(*file_name, temp, strlen(temp));
   }
-  printf("Parsed command string.\n");
-  printf("Command Arg: %s\n ServerName: %s\n ServerIP: %s\n name: %s\n password: %s\n file_name: %s\n temp: %s\n", commandArg, *serverName, serverIP, *name, *password, *file_name, temp);
   return 0;
 }
 
