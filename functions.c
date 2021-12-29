@@ -9,6 +9,7 @@
 #include <string.h>
 #include <netdb.h>
 #include <fcntl.h>
+#include <ctype.h>
 
 void printHelp()
 {
@@ -30,7 +31,7 @@ int parseCommandString(char *commandArg, char **serverName, char *serverIP, char
   {
     memmove(*serverName, soup, strlen(soup) - strlen(temp));
     *serverName = memchr(*serverName, '@', strlen(*serverName));
-    memmove(*serverName, *serverName+1, strlen(*serverName));
+    memmove(*serverName, *serverName + 1, strlen(*serverName));
     printf("serverName: %s\n", *serverName);
     char *aux = memchr(soup, ':', strlen(soup));
     memmove(*name, soup, strlen(soup) - strlen(aux));
@@ -118,169 +119,176 @@ int establishConnection(char *serverIP, int port)
   }
   /*connect to the server*/
   if (connect(sockfd,
-    (struct sockaddr *)&server_addr,
-    sizeof(server_addr)) < 0)
-    {
-      perror("connect()");
-      exit(-1);
-    }
-
-    return sockfd;
+              (struct sockaddr *)&server_addr,
+              sizeof(server_addr)) < 0)
+  {
+    perror("connect()");
+    exit(-1);
   }
 
-  int establishControlConnection(char *serverIP)
+  return sockfd;
+}
+
+int establishControlConnection(char *serverIP)
+{
+  char *connectionAnswer = "220-Welcome to the University of Porto's mirror archive";
+  int socket = establishConnection(serverIP, SERVER_PORT);
+  int res = socketReadAndVerify(socket, connectionAnswer, strlen(connectionAnswer) - 1);
+  if (res)
   {
-    char *connectionAnswer = "220-Welcome to the University of Porto's mirror archive";
-    int socket = establishConnection(serverIP, SERVER_PORT);
-    int res = socketReadAndVerify(socket, connectionAnswer, strlen(connectionAnswer) - 1);
-    if (res)
-    {
-      fprintf(stderr, "Error establishing connection");
-      exit(-1);
-    }
-    return socket;
+    fprintf(stderr, "Error establishing connection");
+    exit(-1);
+  }
+  return socket;
+}
+
+void loginControlConnection(int controlSocket, char *name, char *password)
+{
+  int res;
+  char command[BUFFER_SIZE];
+  char *usernameAnswer = "331 Please specify the password.";
+  char *passwordAnswer = "230 Login successful.";
+  snprintf(command, BUFFER_SIZE, "user %s\n", name);
+  socketWrite(controlSocket, command);
+  int d = strlen(usernameAnswer) - 1;
+  res = socketReadAndVerify(controlSocket, usernameAnswer, strlen(usernameAnswer) - 1);
+  if (res)
+  {
+    fprintf(stderr, "Error providing the user");
+    exit(-1);
+  }
+  snprintf(command, BUFFER_SIZE, "pass %s\n", password);
+  socketWrite(controlSocket, command);
+  res = socketReadAndVerify(controlSocket, passwordAnswer, strlen(passwordAnswer) - 1);
+  if (res)
+  {
+    fprintf(stderr, "Error providing the password");
+    exit(-1);
+  }
+}
+
+int establishDataConnection(char *serverIP, int controlSocket)
+{
+  char answer[BUFFER_SIZE];
+  socketWrite(controlSocket, "PASV\n");
+  socketRead(controlSocket, answer, BUFFER_SIZE);
+  int port = getPASVPort(answer);
+  int dataSocket = establishConnection(serverIP, port);
+  return dataSocket;
+}
+
+int getPASVPort(char *answer)
+{
+  char s[4][20];
+  int nb[6];
+  if (strncmp(answer, "227", 3))
+  {
+    fprintf(stderr, "PASV didn't return 227");
+    exit(-1);
+  }
+  sscanf(answer, "%s %s %s %s (%d,%d,%d,%d,%d,%d)",
+         s[0], s[1], s[2], s[3],
+         &nb[0], &nb[1], &nb[2], &nb[3], &nb[4], &nb[5]);
+
+  return nb[4] * 256 + nb[5];
+}
+
+off_t askForFile(int socket, char *file)
+{
+  int cmdSize = strlen(file) + 5 + 1 + 1;
+  char command[cmdSize];
+  int strSize = strlen(file) + BUFFER_SIZE;
+  char answer[strSize];
+  char *expectedAnswerPrefix = "150 Opening BINARY mode data connection for ";
+  int cmpSize = strlen(expectedAnswerPrefix) + strlen(file) + 1;
+  char expectedAnswer[cmpSize];
+
+  snprintf(command, cmdSize, "RETR %s\n", file);
+  socketWrite(socket, command);
+  socketRead(socket, answer, strSize);
+
+  snprintf(expectedAnswer, cmpSize, "%s%s", expectedAnswerPrefix, file);
+  if (strncmp(answer, expectedAnswer, cmpSize - 1))
+  {
+    fprintf(stderr, "Wrong RETR answer: %s", answer);
+    exit(-1);
   }
 
-  void loginControlConnection(int controlSocket, char *name, char *password)
+  off_t fileSize = getFileSize(answer, strlen(expectedAnswer) + 1);
+  return fileSize;
+}
+
+off_t getFileSize(char *answer, int size)
+{
+  off_t fileSize;
+  sscanf(answer + size, "(%jd bytes).", &fileSize);
+  return fileSize;
+}
+
+void waitForFileTransfer(int socket)
+{
+  char *transferComplete = "226 Transfer complete.";
+  int res = socketReadAndVerify(socket, transferComplete, strlen(transferComplete));
+  if (res)
   {
-    int res;
-    char command[BUFFER_SIZE];
-    char *usernameAnswer = "331 Please specify the password.";
-    char *passwordAnswer = "230 Login successful.";
-    snprintf(command, BUFFER_SIZE, "user %s\n", name);
-    socketWrite(controlSocket, command);
-    int d = strlen(usernameAnswer) - 1;
-    res = socketReadAndVerify(controlSocket, usernameAnswer, strlen(usernameAnswer) - 1);
-    if (res)
-    {
-      fprintf(stderr, "Error providing the user");
-      exit(-1);
-    }
-    snprintf(command, BUFFER_SIZE, "pass %s\n", password);
-    socketWrite(controlSocket, command);
-    res = socketReadAndVerify(controlSocket, passwordAnswer, strlen(passwordAnswer) - 1);
-    if (res)
-    {
-      fprintf(stderr, "Error providing the password");
-      exit(-1);
-    }
+    fprintf(stderr, "Couldn't receive file");
+    exit(-1);
   }
+}
 
-  int establishDataConnection(char *serverIP, int controlSocket)
+void readFile(int socket, char *buf, off_t len)
+{
+  socketRead(socket, buf, len);
+}
+
+void saveFile(char *filename, char *buf, off_t len)
+{
+  char *fileNameNoPath = strrchr(filename, '/');
+  if (fileNameNoPath == NULL)
   {
-    char answer[BUFFER_SIZE];
-    socketWrite(controlSocket, "PASV\n");
-    socketRead(controlSocket, answer, BUFFER_SIZE);
-    int port = getPASVPort(answer);
-    int dataSocket = establishConnection(serverIP, port);
-    return dataSocket;
+    fileNameNoPath = filename;
   }
-
-  int getPASVPort(char *answer)
+  else
   {
-    char s[4][20];
-    int nb[6];
-    if (strncmp(answer, "227", 3))
-    {
-      fprintf(stderr, "PASV didn't return 227");
-      exit(-1);
-    }
-    sscanf(answer, "%s %s %s %s (%d,%d,%d,%d,%d,%d)",
-    s[0], s[1], s[2], s[3],
-    &nb[0], &nb[1], &nb[2], &nb[3], &nb[4], &nb[5]);
-
-    return nb[4] * 256 + nb[5];
+    fileNameNoPath += 1;
   }
-
-  off_t askForFile(int socket, char *file)
+  int fd = open(fileNameNoPath, O_WRONLY | O_CREAT | O_TRUNC, 0777);
+  if (fd == -1)
   {
-    int cmdSize = strlen(file) + 5 + 1 + 1;
-    char command[cmdSize];
-    int strSize = strlen(file) + BUFFER_SIZE;
-    char answer[strSize];
-    char *expectedAnswerPrefix = "150 Opening BINARY mode data connection for ";
-    int cmpSize = strlen(expectedAnswerPrefix) + strlen(file) + 1;
-    char expectedAnswer[cmpSize];
-
-    snprintf(command, cmdSize, "RETR %s\n", file);
-    socketWrite(socket, command);
-    socketRead(socket, answer, strSize);
-
-    snprintf(expectedAnswer, cmpSize, "%s%s", expectedAnswerPrefix, file);
-    if (strncmp(answer, expectedAnswer, cmpSize - 1))
-    {
-      fprintf(stderr, "Wrong RETR answer: %s", answer);
-      exit(-1);
-    }
-
-    off_t fileSize = getFileSize(answer, strlen(expectedAnswer) + 1);
-    return fileSize;
+    perror("open()");
+    exit(-1);
   }
-
-  off_t getFileSize(char *answer, int size)
+  int res = write(fd, buf, len);
+  if (res == -1)
   {
-    off_t fileSize;
-    sscanf(answer + size, "(%jd bytes).", &fileSize);
-    return fileSize;
+    perror("write()");
+    exit(-1);
   }
+}
 
-  void waitForFileTransfer(int socket)
+void socketWrite(int socket, char *toWrite)
+{
+  size_t bytes = write(socket, toWrite, strlen(toWrite));
+  if (bytes > 0)
   {
-    char *transferComplete = "226 Transfer complete.";
-    int res = socketReadAndVerify(socket, transferComplete, strlen(transferComplete));
-    if (res)
-    {
-      fprintf(stderr, "Couldn't receive file");
-      exit(-1);
-    }
+    // printf("Bytes escritos %ld\n", bytes);
   }
-
-  void readFile(int socket, char *buf, off_t len)
+  else
   {
-    socketRead(socket, buf, len);
+    perror("write()");
+    exit(-1);
   }
+}
 
-  void saveFile(char *filename, char *buf, off_t len)
+void socketRead(int socket, char *toRead, int toReadSize)
+{
+  char *lastLine;
+  char *readTo = toRead;
+  ssize_t leftInLine = 0;
+  while (1)
   {
-    char *fileNameNoPath = strrchr(filename, '/');
-    if(fileNameNoPath == NULL){
-      fileNameNoPath = filename;
-    }
-    else{
-      fileNameNoPath += 1;
-    }
-    int fd = open(fileNameNoPath, O_WRONLY | O_CREAT | O_TRUNC, 0777);
-    if (fd == -1)
-    {
-      perror("open()");
-      exit(-1);
-    }
-    int res = write(fd, buf, len);
-    if (res == -1)
-    {
-      perror("write()");
-      exit(-1);
-    }
-  }
+    ssize_t bytes = read(socket, readTo, toReadSize);
 
-  void socketWrite(int socket, char *toWrite)
-  {
-    size_t bytes = write(socket, toWrite, strlen(toWrite));
-    if (bytes > 0)
-    {
-      // printf("Bytes escritos %ld\n", bytes);
-    }
-    else
-    {
-      perror("write()");
-      exit(-1);
-    }
-  }
-
-  void socketRead(int socket, char *toRead, int toReadSize)
-  {
-    ssize_t bytes = read(socket, toRead, toReadSize);
-    printf("%s", toRead);
     if (bytes > 0)
     {
     }
@@ -289,15 +297,63 @@ int establishConnection(char *serverIP, int port)
       perror("read()");
       exit(-1);
     }
-  }
+    printf("%s", readTo);
 
-  int socketReadAndVerify(int socket, char *toVerify, int bytes)
-  {
-    char toRead[BUFFER_SIZE];
-    socketRead(socket, toRead, BUFFER_SIZE);
-    if (strncmp(toRead, toVerify, bytes))
+    // Mainly after connecting to the server
+    // Not all of the message might have been sent
+    // We only know the message hasn't ended if the last line does not have a dash '-' after an http status code
+
+    // Get the last line and number of bytes in it
+    readTo[bytes - 1] = '\0';
+    lastLine = strrchr(readTo, '\n');
+    readTo[bytes - 1] = '\n';
+    if (lastLine == NULL)
     {
-      return -1;
+      // Read a total of one line
+      leftInLine = strlen(readTo);
+      lastLine = readTo;
     }
-    return 0;
+    else
+    {
+      lastLine++;
+      leftInLine = bytes - (lastLine - readTo);
+    }
+
+    // Verify whether or not the line fits the conditions for being a message termination
+    if (leftInLine >= 2 && isdigit(lastLine[0]) && isdigit(lastLine[1]) && isdigit(lastLine[2]))
+    {
+      if (leftInLine >= 3)
+      {
+        // There are more bytes after the code
+        if (lastLine[3] == '-')
+        {
+          readTo = readTo + bytes;
+          continue;
+        }
+        else
+        {
+          return;
+        }
+      }
+      else
+      {
+        return;
+      }
+    }
+    else
+    {
+      return;
+    }
   }
+}
+
+int socketReadAndVerify(int socket, char *toVerify, int bytes)
+{
+  char toRead[BUFFER_SIZE];
+  socketRead(socket, toRead, BUFFER_SIZE);
+  if (strncmp(toRead, toVerify, bytes))
+  {
+    return -1;
+  }
+  return 0;
+}

@@ -1,5 +1,5 @@
 #define SERVER_PORT 21
-#define BUFFER_SIZE 2048
+#define BUFFER_SIZE 4096
 
 #include <unistd.h>
 
