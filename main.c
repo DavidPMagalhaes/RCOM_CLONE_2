@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     parseCommandString(argv[1], &serverName, serverIP, &name, &password, &file);
 
     getIPfromDNS(serverName, serverIP);
-    free(serverName);
+    // free(serverName);
 
     downloadFile(serverIP, name, password, file);
 

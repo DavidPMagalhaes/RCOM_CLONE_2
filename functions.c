@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <ctype.h>
 
+int state = 0;
 void printHelp()
 {
   printf("Usage: download ftp://[<user>:<password>@]<host>/<url-path>\n");
@@ -78,12 +79,19 @@ void downloadFile(char *serverIP, char *name, char *password, char *file)
 {
   int res;
   int controlSocket = establishControlConnection(serverIP);
+  state++;
   loginControlConnection(controlSocket, name, password);
+  state++;
   int dataSocket = establishDataConnection(serverIP, controlSocket);
+  state++;
   off_t fileLen = askForFile(controlSocket, file);
+  state++;
   char buf[fileLen];
   waitForFileTransfer(controlSocket);
+  state++;
+
   readFile(dataSocket, buf, fileLen);
+  state++;
   saveFile(file, buf, fileLen);
 
   if (close(controlSocket) < 0)
@@ -129,7 +137,7 @@ int establishConnection(char *serverIP, int port)
 
 int establishControlConnection(char *serverIP)
 {
-  char *connectionAnswer = "220-Welcome to the University of Porto's mirror archive";
+  char *connectionAnswer = "220 Welcome to netlab-FTP server";
   int socket = establishConnection(serverIP, SERVER_PORT);
   int res = socketReadAndVerify(socket, connectionAnswer, strlen(connectionAnswer) - 1);
   if (res)
@@ -280,6 +288,7 @@ void socketWrite(int socket, char *toWrite)
 
 void socketRead(int socket, char *toRead, int toReadSize)
 {
+  char *specialCases;
   char *lastLine;
   char *readTo = toRead;
   ssize_t leftInLine = 0;
@@ -294,6 +303,10 @@ void socketRead(int socket, char *toRead, int toReadSize)
     {
       perror("read()");
       exit(-1);
+    }
+    if(state == 0 || state == 4 || state == 5){
+      specialCases = strrchr(toRead, '\n');
+      *(specialCases+1) = '\0';
     }
     printf("%s", readTo);
 
@@ -323,10 +336,11 @@ void socketRead(int socket, char *toRead, int toReadSize)
       if (leftInLine >= 3)
       {
         // There are more bytes after the code
-        if (lastLine[3] == '-')
+        if (lastLine[3] == ' ')
         {
-          readTo = readTo + bytes;
-          continue;
+          return;
+          // readTo = readTo + bytes;
+          // continue;
         }
         else
         {
